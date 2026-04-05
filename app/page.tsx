@@ -185,9 +185,10 @@ export default function RollingStockApp() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
+                      {/* ゴミ箱ボタン: スマホでも見えるように修正 */}
                       <button 
                         onClick={() => deleteItem(item.id)}
-                        className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-400 transition-all"
+                        className="text-stone-300 hover:text-red-400 transition-all sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <Trash2 size={18} />
                       </button>
