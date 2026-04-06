@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Minus, ShoppingCart, Trash2, X, PlusCircle, CheckCircle2, AlertCircle, ArrowUp, ArrowDown, ArrowsUpDown } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, X, PlusCircle, CheckCircle2, AlertCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 // 型定義
 interface Item {
@@ -122,7 +122,7 @@ export default function RollingStockApp() {
           <h1 className="text-xl font-bold tracking-tight text-stone-700">ローリングストックリスト</h1>
           <div className="flex gap-4">
             <button onClick={() => setIsSorting(!isSorting)} className={`${isSorting ? 'text-amber-600' : 'text-stone-400'}`}>
-              <ArrowsUpDown size={22} />
+              <ArrowUpDown size={22} />
             </button>
             <button onClick={() => setIsAdding(!isAdding)} className="text-stone-500 hover:text-stone-800">
               {isAdding ? <X size={24} /> : <PlusCircle size={24} />}
