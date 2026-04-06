@@ -18,13 +18,14 @@ export default function RollingStockApp() {
   const [items, setItems] = useState<Item[]>([]);
   const [thresholds, setThresholds] = useState({ daily: 7, emergency: 30 });
   const [isAdding, setIsAdding] = useState(false);
-  const [isSorting, setIsSorting] = useState(false); // 並び替えモード
+  const [isSorting, setIsSorting] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', consumption: '', unit: '個' });
 
   useEffect(() => {
-    const savedItems = localStorage.getItem('rs-v5-items');
-    const savedDate = localStorage.getItem('rs-v5-last-date');
-    const savedThresholds = localStorage.getItem('rs-v5-thresholds');
+    // 内部キーをv6に更新
+    const savedItems = localStorage.getItem('rs-v6-items');
+    const savedDate = localStorage.getItem('rs-v6-last-date');
+    const savedThresholds = localStorage.getItem('rs-v6-thresholds');
     const today = new Date().toISOString().split('T')[0];
     
     const defaultItems: Item[] = [
@@ -45,12 +46,12 @@ export default function RollingStockApp() {
 
     setItems(currentItems);
     if (savedThresholds) setThresholds(JSON.parse(savedThresholds));
-    localStorage.setItem('rs-v5-last-date', today);
+    localStorage.setItem('rs-v6-last-date', today);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('rs-v5-items', JSON.stringify(items));
-    localStorage.setItem('rs-v5-thresholds', JSON.stringify(thresholds));
+    localStorage.setItem('rs-v6-items', JSON.stringify(items));
+    localStorage.setItem('rs-v6-thresholds', JSON.stringify(thresholds));
   }, [items, thresholds]);
 
   const filteredItems = items.filter(item => item.category === activeTab);
@@ -85,7 +86,6 @@ export default function RollingStockApp() {
     }
   };
 
-  // アイテムの移動処理
   const moveItem = (id: string, direction: 'up' | 'down') => {
     const currentIndex = items.findIndex(item => item.id === id);
     const tabItems = items.filter(item => item.category === activeTab);
@@ -159,7 +159,6 @@ export default function RollingStockApp() {
                 placeholder="単位" 
                 className="w-1/2 border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500" 
                 value={newItem.unit} 
-                // 数字が入ったら自動で空文字に置換するガード
                 onChange={e => setNewItem({...newItem, unit: e.target.value.replace(/[0-9]/g, '')})} 
               />
             </div>
@@ -212,7 +211,14 @@ export default function RollingStockApp() {
                     <input 
                       type="range" min="0.01" max="5" step="0.01" 
                       value={item.dailyConsumption}
-                      onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, dailyConsumption: parseFloat(e.target.value)} : i))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        // 0.1より大きい場合は0.1刻みに丸め、それ以下は0.01刻みのままにする
+                        const snappedVal = val > 0.1 
+                          ? Math.round(val * 10) / 10 
+                          : Math.round(val * 100) / 100;
+                        setItems(items.map(i => i.id === item.id ? {...i, dailyConsumption: snappedVal} : i));
+                      }}
                       className="w-full h-1 bg-stone-100 rounded-lg appearance-none cursor-pointer accent-stone-400"
                     />
                   </div>
