@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Minus, ShoppingCart, Trash2, X, PlusCircle, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, X, PlusCircle, CheckCircle2, AlertCircle, ArrowUp, ArrowDown, ArrowsUpDown } from 'lucide-react';
 
 // 型定義
 interface Item {
@@ -14,23 +14,19 @@ interface Item {
 }
 
 export default function RollingStockApp() {
-  // 状態管理：初期タブを「日用品」に設定
   const [activeTab, setActiveTab] = useState<'daily' | 'emergency'>('daily');
   const [items, setItems] = useState<Item[]>([]);
   const [thresholds, setThresholds] = useState({ daily: 7, emergency: 30 });
   const [isAdding, setIsAdding] = useState(false);
+  const [isSorting, setIsSorting] = useState(false); // 並び替えモード
   const [newItem, setNewItem] = useState({ name: '', stock: '', consumption: '', unit: '個' });
 
-  // 初期ロード
   useEffect(() => {
-    // 新しいバージョン(v4)として保存
-    const savedItems = localStorage.getItem('rs-v4-items');
-    const savedDate = localStorage.getItem('rs-v4-last-date');
-    const savedThresholds = localStorage.getItem('rs-v4-thresholds');
-
+    const savedItems = localStorage.getItem('rs-v5-items');
+    const savedDate = localStorage.getItem('rs-v5-last-date');
+    const savedThresholds = localStorage.getItem('rs-v5-thresholds');
     const today = new Date().toISOString().split('T')[0];
     
-    // データがない場合の新しい初期例
     const defaultItems: Item[] = [
       { id: 'default-1', name: '玄米(5kg)', currentStock: 1, dailyConsumption: 0.1, unit: '袋', category: 'daily' },
       { id: 'default-2', name: '水(500ml)', currentStock: 24, dailyConsumption: 2, unit: '本', category: 'emergency' }
@@ -38,7 +34,6 @@ export default function RollingStockApp() {
 
     let currentItems = savedItems ? JSON.parse(savedItems) : defaultItems;
 
-    // 自動消費計算
     if (savedDate && savedDate !== today) {
       const diffTime = Math.abs(new Date(today).getTime() - new Date(savedDate).getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -50,13 +45,12 @@ export default function RollingStockApp() {
 
     setItems(currentItems);
     if (savedThresholds) setThresholds(JSON.parse(savedThresholds));
-    localStorage.setItem('rs-v4-last-date', today);
+    localStorage.setItem('rs-v5-last-date', today);
   }, []);
 
-  // 保存
   useEffect(() => {
-    localStorage.setItem('rs-v4-items', JSON.stringify(items));
-    localStorage.setItem('rs-v4-thresholds', JSON.stringify(thresholds));
+    localStorage.setItem('rs-v5-items', JSON.stringify(items));
+    localStorage.setItem('rs-v5-thresholds', JSON.stringify(thresholds));
   }, [items, thresholds]);
 
   const filteredItems = items.filter(item => item.category === activeTab);
@@ -91,6 +85,23 @@ export default function RollingStockApp() {
     }
   };
 
+  // アイテムの移動処理
+  const moveItem = (id: string, direction: 'up' | 'down') => {
+    const currentIndex = items.findIndex(item => item.id === id);
+    const tabItems = items.filter(item => item.category === activeTab);
+    const indexInTab = tabItems.findIndex(item => item.id === id);
+
+    if (direction === 'up' && indexInTab === 0) return;
+    if (direction === 'down' && indexInTab === tabItems.length - 1) return;
+
+    const targetInTab = tabItems[indexInTab + (direction === 'up' ? -1 : 1)];
+    const targetIndex = items.findIndex(item => item.id === targetInTab.id);
+
+    const newItems = [...items];
+    [newItems[currentIndex], newItems[targetIndex]] = [newItems[targetIndex], newItems[currentIndex]];
+    setItems(newItems);
+  };
+
   const getStatus = (item: Item) => {
     const remainingDays = item.currentStock / item.dailyConsumption;
     return remainingDays < thresholds[activeTab] ? 'low' : 'ok';
@@ -109,36 +120,26 @@ export default function RollingStockApp() {
       <header className="max-w-md mx-auto mb-4">
         <div className="flex justify-between items-end border-b-2 border-stone-300 pb-2">
           <h1 className="text-xl font-bold tracking-tight text-stone-700">ローリングストックリスト</h1>
-          <button onClick={() => setIsAdding(!isAdding)} className="text-stone-500 hover:text-stone-800">
-            {isAdding ? <X size={24} /> : <PlusCircle size={24} />}
-          </button>
+          <div className="flex gap-4">
+            <button onClick={() => setIsSorting(!isSorting)} className={`${isSorting ? 'text-amber-600' : 'text-stone-400'}`}>
+              <ArrowsUpDown size={22} />
+            </button>
+            <button onClick={() => setIsAdding(!isAdding)} className="text-stone-500 hover:text-stone-800">
+              {isAdding ? <X size={24} /> : <PlusCircle size={24} />}
+            </button>
+          </div>
         </div>
         
-        {/* タブ切り替え（左: 日用品 / 右: 防災備蓄） */}
         <div className="flex mt-4 bg-stone-200/50 rounded-lg p-1">
-          <button 
-            onClick={() => setActiveTab('daily')}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'daily' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}
-          >
-            日用品
-          </button>
-          <button 
-            onClick={() => setActiveTab('emergency')}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'emergency' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}
-          >
-            防災備蓄
-          </button>
+          <button onClick={() => setActiveTab('daily')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'daily' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}>日用品</button>
+          <button onClick={() => setActiveTab('emergency')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'emergency' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}>防災備蓄</button>
         </div>
 
         <div className="mt-4 flex items-center justify-between text-[10px] text-stone-400 italic">
           <span>記録：ブラウザ内保存</span>
           <div className="flex items-center gap-1">
             <span className="not-italic font-bold text-stone-600">期限: </span>
-            <select 
-              className="bg-transparent border-none focus:ring-0 p-0 text-stone-700 font-bold"
-              value={thresholds[activeTab]}
-              onChange={(e) => setThresholds({...thresholds, [activeTab]: parseInt(e.target.value)})}
-            >
+            <select className="bg-transparent border-none focus:ring-0 p-0 text-stone-700 font-bold text-[10px]" value={thresholds[activeTab]} onChange={(e) => setThresholds({...thresholds, [activeTab]: parseInt(e.target.value)})}>
               <option value={7}>1週間前</option>
               <option value={14}>2週間前</option>
               <option value={30}>1ヶ月前</option>
@@ -151,32 +152,18 @@ export default function RollingStockApp() {
       <main className="max-w-md mx-auto space-y-4">
         {isAdding && (
           <form onSubmit={addItem} className="bg-white p-6 rounded-lg border-2 border-stone-200 shadow-sm space-y-4 mb-4">
-            <input 
-              placeholder="品名 (例: お米)" 
-              className="w-full border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500"
-              value={newItem.name}
-              onChange={e => setNewItem({...newItem, name: e.target.value})}
-            />
+            <input placeholder="品名 (例: お米)" className="w-full border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} />
             <div className="flex gap-4">
-              <input 
-                placeholder="在庫量" type="number" step="0.1"
-                className="w-1/2 border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500"
-                value={newItem.stock}
-                onChange={e => setNewItem({...newItem, stock: e.target.value})}
-              />
+              <input placeholder="在庫量" type="number" step="0.1" className="w-1/2 border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} />
               <input 
                 placeholder="単位" 
-                className="w-1/2 border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500"
-                value={newItem.unit}
-                onChange={e => setNewItem({...newItem, unit: e.target.value})}
+                className="w-1/2 border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500" 
+                value={newItem.unit} 
+                // 数字が入ったら自動で空文字に置換するガード
+                onChange={e => setNewItem({...newItem, unit: e.target.value.replace(/[0-9]/g, '')})} 
               />
             </div>
-            <input 
-              placeholder="1日の消費量 (例: 0.5)" type="number" step="0.1"
-              className="w-full border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500"
-              value={newItem.consumption}
-              onChange={e => setNewItem({...newItem, consumption: e.target.value})}
-            />
+            <input placeholder="1日の消費量 (例: 0.5)" type="number" step="0.1" className="w-full border-b border-stone-200 p-2 focus:outline-none focus:border-stone-500" value={newItem.consumption} onChange={e => setNewItem({...newItem, consumption: e.target.value})} />
             <button type="submit" className="w-full bg-stone-800 text-white py-2 rounded-md font-bold text-sm">追加する</button>
           </form>
         )}
@@ -189,16 +176,20 @@ export default function RollingStockApp() {
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-400 opacity-60"></div>
                 <div className="p-4 pl-6">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-lg font-bold text-stone-700">{item.name}</h2>
-                      <p className="text-[10px] text-stone-400 font-semibold">
-                        1日の消費目安: {item.dailyConsumption} {item.unit}
-                      </p>
+                    <div className="flex gap-3">
+                      {isSorting && (
+                        <div className="flex flex-col gap-2 mr-2">
+                          <button onClick={() => moveItem(item.id, 'up')} className="text-stone-300 active:text-stone-800"><ArrowUp size={16} /></button>
+                          <button onClick={() => moveItem(item.id, 'down')} className="text-stone-300 active:text-stone-800"><ArrowDown size={16} /></button>
+                        </div>
+                      )}
+                      <div>
+                        <h2 className="text-lg font-bold text-stone-700">{item.name}</h2>
+                        <p className="text-[10px] text-stone-400 font-semibold">1日の消費目安: {item.dailyConsumption} {item.unit}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button onClick={() => deleteItem(item.id)} className="text-stone-300 hover:text-red-400 transition-colors">
-                        <Trash2 size={18} />
-                      </button>
+                      <button onClick={() => deleteItem(item.id)} className="text-stone-300 hover:text-red-400 transition-colors"><Trash2 size={18} /></button>
                       {isLow ? <AlertCircle className="text-red-500 w-5 h-5 animate-pulse" /> : <CheckCircle2 className="text-emerald-500 w-5 h-5" />}
                     </div>
                   </div>
@@ -207,17 +198,19 @@ export default function RollingStockApp() {
                     <div className="text-3xl font-mono font-medium text-stone-800">
                       {Math.floor(item.currentStock * 10) / 10} <span className="text-xs font-sans text-stone-400">{item.unit}</span>
                     </div>
-                    <div className="flex items-center gap-1 bg-stone-50 rounded-full p-1 border border-stone-100">
-                      <button onClick={() => updateStock(item.id, -1)} className="p-2 hover:bg-white rounded-full"><Minus size={18}/></button>
-                      <div className="w-px h-4 bg-stone-200"></div>
-                      <button onClick={() => updateStock(item.id, 1)} className="p-2 hover:bg-white rounded-full"><Plus size={18}/></button>
-                    </div>
+                    {!isSorting && (
+                      <div className="flex items-center gap-1 bg-stone-50 rounded-full p-1 border border-stone-100">
+                        <button onClick={() => updateStock(item.id, -1)} className="p-2 hover:bg-white rounded-full"><Minus size={18}/></button>
+                        <div className="w-px h-4 bg-stone-200"></div>
+                        <button onClick={() => updateStock(item.id, 1)} className="p-2 hover:bg-white rounded-full"><Plus size={18}/></button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 flex items-center gap-4">
                     <span className="text-[10px] text-stone-400 whitespace-nowrap">消費ペース</span>
                     <input 
-                      type="range" min="0.1" max="5" step="0.1" 
+                      type="range" min="0.01" max="5" step="0.01" 
                       value={item.dailyConsumption}
                       onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, dailyConsumption: parseFloat(e.target.value)} : i))}
                       className="w-full h-1 bg-stone-100 rounded-lg appearance-none cursor-pointer accent-stone-400"
@@ -231,10 +224,7 @@ export default function RollingStockApp() {
       </main>
 
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
-        <button 
-          onClick={copyShoppingList}
-          className="w-full flex items-center justify-center gap-3 bg-stone-800 text-white py-4 rounded-xl shadow-2xl hover:bg-stone-700 active:scale-95 transition-all"
-        >
+        <button onClick={copyShoppingList} className="w-full flex items-center justify-center gap-3 bg-stone-800 text-white py-4 rounded-xl shadow-2xl hover:bg-stone-700 active:scale-95 transition-all">
           <ShoppingCart size={20} />
           <span className="font-bold tracking-widest text-sm uppercase">買い物リストを作成</span>
         </button>
