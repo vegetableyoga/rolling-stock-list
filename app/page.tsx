@@ -10,25 +10,33 @@ interface Item {
   currentStock: number;
   dailyConsumption: number;
   unit: string;
-  category: 'emergency' | 'daily';
+  category: 'daily' | 'emergency';
 }
 
 export default function RollingStockApp() {
-  // 状態管理
-  const [activeTab, setActiveTab] = useState<'emergency' | 'daily'>('emergency');
+  // 状態管理：初期タブを「日用品」に設定
+  const [activeTab, setActiveTab] = useState<'daily' | 'emergency'>('daily');
   const [items, setItems] = useState<Item[]>([]);
-  const [thresholds, setThresholds] = useState({ emergency: 30, daily: 7 });
+  const [thresholds, setThresholds] = useState({ daily: 7, emergency: 30 });
   const [isAdding, setIsAdding] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', stock: '', consumption: '', unit: '個' });
 
   // 初期ロード
   useEffect(() => {
-    const savedItems = localStorage.getItem('rs-v2-items');
-    const savedDate = localStorage.getItem('rs-v2-last-date');
-    const savedThresholds = localStorage.getItem('rs-v2-thresholds');
+    // 新しいバージョン(v4)として保存
+    const savedItems = localStorage.getItem('rs-v4-items');
+    const savedDate = localStorage.getItem('rs-v4-last-date');
+    const savedThresholds = localStorage.getItem('rs-v4-thresholds');
 
-    let currentItems = savedItems ? JSON.parse(savedItems) : [];
     const today = new Date().toISOString().split('T')[0];
+    
+    // データがない場合の新しい初期例
+    const defaultItems: Item[] = [
+      { id: 'default-1', name: '玄米(5kg)', currentStock: 1, dailyConsumption: 0.1, unit: '袋', category: 'daily' },
+      { id: 'default-2', name: '水(500ml)', currentStock: 24, dailyConsumption: 2, unit: '本', category: 'emergency' }
+    ];
+
+    let currentItems = savedItems ? JSON.parse(savedItems) : defaultItems;
 
     // 自動消費計算
     if (savedDate && savedDate !== today) {
@@ -42,16 +50,15 @@ export default function RollingStockApp() {
 
     setItems(currentItems);
     if (savedThresholds) setThresholds(JSON.parse(savedThresholds));
-    localStorage.setItem('rs-v2-last-date', today);
+    localStorage.setItem('rs-v4-last-date', today);
   }, []);
 
   // 保存
   useEffect(() => {
-    localStorage.setItem('rs-v2-items', JSON.stringify(items));
-    localStorage.setItem('rs-v2-thresholds', JSON.stringify(thresholds));
+    localStorage.setItem('rs-v4-items', JSON.stringify(items));
+    localStorage.setItem('rs-v4-thresholds', JSON.stringify(thresholds));
   }, [items, thresholds]);
 
-  // カテゴリーフィルタ
   const filteredItems = items.filter(item => item.category === activeTab);
 
   const updateStock = (id: string, amount: number) => {
@@ -92,13 +99,13 @@ export default function RollingStockApp() {
   const copyShoppingList = () => {
     const lowStockItems = filteredItems.filter(item => getStatus(item) === 'low');
     const text = lowStockItems.map(item => `・${item.name} (${item.unit})`).join('\n');
-    navigator.clipboard.writeText(`【在庫補充リスト】\n${text}`);
+    const categoryName = activeTab === 'daily' ? '日用品' : '防災備蓄';
+    navigator.clipboard.writeText(`【${categoryName} 要補充リスト】\n${text}`);
     alert('リストをコピーしました');
   };
 
   return (
     <div className="min-h-screen bg-[#fdfcf0] text-stone-800 p-4 font-sans pb-32">
-      {/* Header */}
       <header className="max-w-md mx-auto mb-4">
         <div className="flex justify-between items-end border-b-2 border-stone-300 pb-2">
           <h1 className="text-xl font-bold tracking-tight text-stone-700">ローリングストックリスト</h1>
@@ -107,19 +114,19 @@ export default function RollingStockApp() {
           </button>
         </div>
         
-        {/* Tab Switcher */}
+        {/* タブ切り替え（左: 日用品 / 右: 防災備蓄） */}
         <div className="flex mt-4 bg-stone-200/50 rounded-lg p-1">
-          <button 
-            onClick={() => setActiveTab('emergency')}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'emergency' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}
-          >
-            震災備蓄
-          </button>
           <button 
             onClick={() => setActiveTab('daily')}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'daily' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}
           >
             日用品
+          </button>
+          <button 
+            onClick={() => setActiveTab('emergency')}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'emergency' ? 'bg-white shadow-sm text-stone-800' : 'text-stone-500'}`}
+          >
+            防災備蓄
           </button>
         </div>
 
@@ -142,7 +149,6 @@ export default function RollingStockApp() {
       </header>
 
       <main className="max-w-md mx-auto space-y-4">
-        {/* Add Form */}
         {isAdding && (
           <form onSubmit={addItem} className="bg-white p-6 rounded-lg border-2 border-stone-200 shadow-sm space-y-4 mb-4">
             <input 
@@ -175,7 +181,6 @@ export default function RollingStockApp() {
           </form>
         )}
 
-        {/* Item List */}
         <div className="space-y-4">
           {filteredItems.map(item => {
             const isLow = getStatus(item) === 'low';
@@ -209,7 +214,6 @@ export default function RollingStockApp() {
                     </div>
                   </div>
 
-                  {/* Slider */}
                   <div className="mt-4 flex items-center gap-4">
                     <span className="text-[10px] text-stone-400 whitespace-nowrap">消費ペース</span>
                     <input 
@@ -226,7 +230,6 @@ export default function RollingStockApp() {
         </div>
       </main>
 
-      {/* Floating Action Button */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
         <button 
           onClick={copyShoppingList}
